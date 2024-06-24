@@ -2,9 +2,6 @@
 #include <stdio.h>
 #include "modulo.h" 
 
-//Integrantes: Jairo Galarza, Joel Suarez. 
-//Control Digital
-// 03/06/24 
 // Definición de Pines
 typedef enum:uint8_t{ //Pines de Salida
     led_r = 4,
@@ -43,7 +40,14 @@ typedef struct {
   tiempoleds_t tiempo;           // Tiempo entre cambios de LED
   orientacion_t orientacion;     // Orientación de la secuencia (ascendente o descendente)
 } controlSecuencia_t;
-
+// Definición de la estructura para Maquina de Estados BTNs
+typedef enum{
+    Btn_Up,
+    Btn_Down,
+    Btn_Falling,
+    Btn_Rising
+}fsmButtonState_t;
+fsmButtonState_t fsmButtonState; //Estados FSM
 
 //Declaracion de Secuencias Escalables y Prioridades
 const gpioMapLeds_t leds_sec[] = {led_g, led_y, led_r, led_b}; //Secuencia (ordenada)
@@ -65,8 +69,10 @@ void ejecutarSecuencia(controlSecuencia_t *control, const uint8_t numLeds);
 void comprobarBtns(const gpioMapBtns_t *btns, controlSecuencia_t *control,
                   const uint8_t numBtns);
 boolBtns_t state_Tecla(uint8_t tecla); 
-bool apagarLeds(); 
-
+bool apagarLeds(void); 
+void fsmButtonInit(void);
+boolBtns_t fsmButtonUpdate(uint8_t btn_pin);
+void fsmButtonError(void);
 /*
   *********************
   FUNCIONES PRINCIPALES 
@@ -77,6 +83,7 @@ void setup() {
   configurarPines(leds_sec, leds_dimen, btns_entr, btns_dimen);
   inicializarSecuencia(&control1, leds_sec, time1, ascendente);
   apagarLeds();
+  fsmButtonInit();
 }
 
 
@@ -107,22 +114,12 @@ bool apagarLeds() {
   return true;
 }
 
-boolBtns_t state_Tecla(uint8_t tecla) {
-  //Funcion que permite Leer el estado de la Tecla
-  if (leer_btn(tecla)) {
-    return down;
-  }else{
-    delay(50); //Antirebote
-    return pull;
-  }
-}
-
 void comprobarBtns(const gpioMapBtns_t *btns, controlSecuencia_t *control, 
                   const uint8_t numBtns){
   //Funcion que Permite Intercambial el Valor de Control de Secuencia y ...
     //tambien definir la prioridad de los botones (PROGRAMACION DEFENSIVA)
   for (uint8_t i=0; i<numBtns; ++i){
-    if(state_Tecla(btns[i])==pull){
+    if(fsmButtonUpdate(btns[i])==pull){
       switch (btns[i]){
       case SW1: control->orientacion = descendente;
         return;
@@ -166,3 +163,51 @@ void ejecutarSecuencia(controlSecuencia_t *control, const uint8_t numLeds) {
   }  
 }
 
+/* ******* Maquina Estados BTN *****/
+void fsmButtonInit(void){
+    fsmButtonState = Btn_Up;
+}
+
+void fsmButtonError(void){
+    fsmButtonState = Btn_Up;
+}
+
+
+boolBtns_t fsmButtonUpdate(uint8_t btn_pin){
+  static boolBtns_t state_btn = down;
+    switch (fsmButtonState)
+    {
+    case Btn_Up:
+        if(leer_btn(btn_pin)){
+          fsmButtonState=Btn_Falling;}
+        break;
+    case Btn_Down:
+        if(leer_btn(btn_pin)){
+          fsmButtonState=Btn_Rising;}
+        break;
+    case Btn_Falling:
+        if(nMEF(40)){
+          if(leer_btn(btn_pin)){
+            fsmButtonState=Btn_Down;
+            state_btn = pull;
+          }else{
+            fsmButtonState=Btn_Up;
+          }
+        }
+        break;
+    case Btn_Rising:
+        if(nMEF(40)){
+          if(leer_btn(btn_pin)){
+            fsmButtonState=Btn_Up;
+          }else{
+            fsmButtonState=Btn_Down;
+          }
+        }
+        break;
+    default:
+        fsmButtonError();
+        state_btn = down;
+        break;
+    }
+  return state_btn;
+}
