@@ -8,5 +8,5 @@
 void parpadear_led(uint8_t led);
 void led_state(uint8_t led_pin, _Bool state);
 _Bool leer_btn(uint8_t btn_pin);
-
+_Bool nMEF(int16_t time_delay);
 #endif
