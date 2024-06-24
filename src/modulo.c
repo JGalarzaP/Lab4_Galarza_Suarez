@@ -2,9 +2,6 @@
 #include <stdio.h>
 //incluye timedeay2.0
 
-
-
-
 void parpadear_led(uint8_t led_pin){
     digitalWrite(led_pin,!digitalRead(led_pin));
 }
