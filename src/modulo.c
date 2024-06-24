@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <stdio.h>
-//incluye timedeay
+//incluye timedeay2.0
+
+
 
 
 void parpadear_led(uint8_t led_pin){
